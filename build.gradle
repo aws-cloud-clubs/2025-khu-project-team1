@@ -1,0 +1,150 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.khu.acc'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+ext {
+	set('springCloudVersion', "2023.0.1")
+	set('awsSdkVersion', "2.25.60")
+	set('springDataDynamodbVersion', "5.2.5")
+	set('jwtVersion', "0.12.6")
+	set('testcontainersVersion', "1.19.8")
+}
+
+dependencies {
+	// Spring Boot Core
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+
+	// Spring Security & JWT
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation "io.jsonwebtoken:jjwt-api:${jwtVersion}"
+	implementation "io.jsonwebtoken:jjwt-impl:${jwtVersion}"
+	implementation "io.jsonwebtoken:jjwt-jackson:${jwtVersion}"
+
+	// AWS SDK & DynamoDB
+	implementation platform("software.amazon.awssdk:bom:${awsSdkVersion}")
+	implementation 'software.amazon.awssdk:dynamodb'
+	implementation 'software.amazon.awssdk:dynamodb-enhanced'
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:ses'
+	implementation 'software.amazon.awssdk:cloudwatch'
+	implementation 'software.amazon.awssdk:xray'
+	implementation 'software.amazon.awssdk:sts'
+
+	// Spring Data DynamoDB
+	implementation "io.github.boostchicken:spring-data-dynamodb:${springDataDynamodbVersion}"
+
+	// AWS Lambda
+	implementation 'com.amazonaws:aws-lambda-java-core:1.2.3'
+	implementation 'com.amazonaws:aws-lambda-java-events:3.11.6'
+	implementation 'com.amazonaws:aws-lambda-java-log4j2:1.6.0'
+	implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot3:2.0.3'
+
+	// Redis & Caching
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'redis.clients:jedis:5.1.2'
+	implementation 'org.springframework.session:spring-session-data-redis'
+
+	// JSON & Serialization
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	implementation 'com.fasterxml.jackson.module:jackson-module-parameter-names'
+
+	// File Upload & Processing
+	implementation 'commons-fileupload:commons-fileupload:1.5'
+	implementation 'org.apache.commons:commons-lang3:3.14.0'
+	implementation 'commons-io:commons-io:2.16.1'
+
+	// Image Processing
+	implementation 'org.imgscalr:imgscalr-lib:4.2'
+	implementation 'com.twelvemonkeys.imageio:imageio-jpeg:3.10.1'
+	implementation 'com.twelvemonkeys.imageio:imageio-tiff:3.10.1'
+
+	// Monitoring & Observability
+	implementation 'io.micrometer:micrometer-registry-cloudwatch2'
+	implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+	implementation 'com.amazonaws:aws-xray-recorder-sdk-core:2.15.1'
+	implementation 'com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:2.15.1'
+	implementation 'com.amazonaws:aws-xray-recorder-sdk-spring:2.15.1'
+
+	// HTTP Client
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'io.netty:netty-resolver-dns-native-macos:4.1.108.Final:osx-aarch_64'
+
+	// Async Processing
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+	implementation 'software.amazon.awssdk:sqs'
+	implementation 'software.amazon.awssdk:sns'
+
+	// API Documentation
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+
+	// Utility Libraries
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
+	// Configuration Properties
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	// Rate Limiting
+	implementation 'com.github.vladimir-bukhtoyarov:bucket4j-core:7.6.0'
+	implementation 'com.github.vladimir-bukhtoyarov:bucket4j-redis:7.6.0'
+
+	// Email Templates
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+	// Development Tools
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Testing
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:localstack'
+	testImplementation 'org.testcontainers:redis'
+	testImplementation 'com.amazonaws:DynamoDBLocal:2.0.0'
+	testImplementation 'com.almworks.sqlite4java:sqlite4java:1.0.392'
+	testImplementation 'it.ozimov:embedded-redis:0.7.3'
+	testImplementation 'org.mockito:mockito-inline:5.2.0'
+	testImplementation 'org.awaitility:awaitility:4.2.1'
+	testImplementation 'com.github.tomakehurst:wiremock-jre8:3.0.1'
+
+	// Performance Testing
+	testImplementation 'org.openjdk.jmh:jmh-core:1.37'
+	testImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+if (project.hasProperty('docker')) {
+	apply plugin: 'com.palantir.docker'
+
+	docker {
+		name "${project.name}:${project.version}"
+		dockerfile file('Dockerfile')
+		files bootJar.archiveFile
+		buildArgs(['JAR_FILE': bootJar.archiveFileName.get()])
+	}
+}

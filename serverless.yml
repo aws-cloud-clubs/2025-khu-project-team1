@@ -1,0 +1,154 @@
+service: news-feed
+
+provider:
+  name: aws
+  runtime: java17
+  region: ap-northeast-2
+
+  environment:
+    REDIS_HOST: ${env:REDIS_HOST}
+    REDIS_PORT: ${env:REDIS_PORT}
+    REDIS_PASSWORD: ${env:REDIS_PASSWORD}
+    JWT_SECRET: ${env:JWT_SECRET}
+    JWT_EXPIRATION: ${env:JWT_EXPIRATION}
+
+
+package:
+  artifact: build/distributions/news-feed-0.0.1-SNAPSHOT.zip
+
+functions:
+  api:
+    handler: com.khu.acc.newsfeed.StreamLambdaHandler
+    events:
+      - http:
+          path: /{proxy+}
+          method: any
+
+resources:
+  Resources:
+    commentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Comments
+        AttributeDefinitions:
+          - AttributeName: commentId
+            AttributeType: S
+          - AttributeName: postId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: commentId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: PostCommentsIndex
+            KeySchema:
+              - AttributeName: postId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    followsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Follows
+        AttributeDefinitions:
+          - AttributeName: followerId
+            AttributeType: S
+          - AttributeName: followeeId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: followerId
+            KeyType: HASH
+          - AttributeName: followeeId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: FolloweeIndex
+            KeySchema:
+              - AttributeName: followeeId
+                KeyType: HASH
+              - AttributeName: followerId
+                KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    likesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Likes
+        AttributeDefinitions:
+          - AttributeName: postId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: postId
+            KeyType: HASH
+          - AttributeName: userId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    notificationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Notifications
+        AttributeDefinitions:
+          - AttributeName: notificationId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: notificationId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserNotificationsIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    postsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Posts
+        AttributeDefinitions:
+          - AttributeName: postId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: postId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserPostsIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    usersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Users
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: EmailIndex
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+        BillingMode: PAY_PER_REQUEST

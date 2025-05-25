@@ -121,7 +121,7 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:localstack'
-	testImplementation 'org.testcontainers:redis'
+	//testImplementation 'org.testcontainers:redis'
 	testImplementation 'com.amazonaws:DynamoDBLocal:2.0.0'
 	testImplementation 'com.almworks.sqlite4java:sqlite4java:1.0.392'
 	testImplementation 'it.ozimov:embedded-redis:0.7.3'
@@ -136,6 +136,14 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.register('buildZip', Zip) {
+	dependsOn bootJar
+	from compileJava
+	from processResources
+	from bootJar.archiveFile.map { zipTree(it) }
+	destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 }
 
 if (project.hasProperty('docker')) {

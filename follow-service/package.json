@@ -1,0 +1,21 @@
+{
+  "name": "follow-service",
+  "version": "1.0.0",
+  "description": "팔로우 기능 서버리스 모듈",
+  "main": "handlers/follow.js",
+  "scripts": {
+    "offline": "serverless offline",
+    "deploy": "serverless deploy",
+    "jwt": "node generate-jwt.js"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1396.0",
+    "jsonwebtoken": "^9.0.2",
+    "redis": "^4.6.7",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^12.0.4"
+  }
+}

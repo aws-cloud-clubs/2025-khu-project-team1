@@ -177,9 +177,8 @@ spring:
             on-profile: prod
     data:
         redis:
-            host: ${REDIS_HOST:newsfeed-redis.cache.amazonaws.com}
+            host: ${REDIS_HOST}
             port: ${REDIS_PORT:6379}
-            password: ${REDIS_PASSWORD:}
             timeout: 3000ms
 
 aws:

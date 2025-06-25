@@ -3,14 +3,15 @@ service: news-feed
 provider:
   name: aws
   runtime: java17
-  region: ap-northeast-2
+  region: ${env:AWS_REGION}
 
   environment:
+    DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT}
     REDIS_HOST: ${env:REDIS_HOST}
     REDIS_PORT: ${env:REDIS_PORT}
-    REDIS_PASSWORD: ${env:REDIS_PASSWORD}
     JWT_SECRET: ${env:JWT_SECRET}
     JWT_EXPIRATION: ${env:JWT_EXPIRATION}
+    AWS_REGION: ${env:AWS_REGION}
 
 
 package:
@@ -49,30 +50,30 @@ resources:
                 KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
 
-followsTable:
-  Type: AWS::DynamoDB::Table
-  Properties:
-    TableName: Follows
-    AttributeDefinitions:
-      - AttributeName: followId
-        AttributeType: S
-      - AttributeName: followerId
-        AttributeType: S
-      - AttributeName: followeeId
-        AttributeType: S
-    KeySchema:
-      - AttributeName: followId
-        KeyType: HASH
-    GlobalSecondaryIndexes:
-      - IndexName: FollowerIndex
-        KeySchema:
+    followsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Follows
+        AttributeDefinitions:
+          - AttributeName: followId
+            AttributeType: S
           - AttributeName: followerId
-            KeyType: HASH
-      - IndexName: FolloweeIndex
-        KeySchema:
+            AttributeType: S
           - AttributeName: followeeId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: followId
             KeyType: HASH
-    BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: FollowerIndex
+            KeySchema:
+              - AttributeName: followerId
+                KeyType: HASH
+          - IndexName: FolloweeIndex
+            KeySchema:
+              - AttributeName: followeeId
+                KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
 
     likesTable:
       Type: AWS::DynamoDB::Table

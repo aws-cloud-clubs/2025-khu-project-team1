@@ -47,5 +47,21 @@ public class UserService {
     }
 
     public User updateUserProfile(User user, @Size(max = 100, message = "Display name must not exceed 100 characters") String displayName, @Size(max = 500, message = "Bio must not exceed 500 characters") String bio, String profileImageUrl, Set<String> interests) {
+        return user;
+    }
+
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
+    public List<User> searchUsersByUsername(String username) {
+        return userRepository.findAllByUsername(username);
+    }
+
+    public Page<User> findActiveUsers(Pageable pageable) {
+        return userRepository.findByIsActive("true", pageable);
+    }
+
+    public void deactivateUser(String userId) {
     }
 }

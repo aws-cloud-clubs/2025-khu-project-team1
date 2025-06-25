@@ -25,7 +25,7 @@ public class UserResponse {
     private Long followingCount;
     private Long postsCount;
     private Set<String> interests;
-    private Boolean isActive;
+    private String isActive;
     private Instant createdAt;
     private Instant updatedAt;
 

@@ -49,43 +49,54 @@ resources:
                 KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
 
-    followsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: Follows
-        AttributeDefinitions:
-          - AttributeName: followerId
-            AttributeType: S
-          - AttributeName: followeeId
-            AttributeType: S
+followsTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: Follows
+    AttributeDefinitions:
+      - AttributeName: followId
+        AttributeType: S
+      - AttributeName: followerId
+        AttributeType: S
+      - AttributeName: followeeId
+        AttributeType: S
+    KeySchema:
+      - AttributeName: followId
+        KeyType: HASH
+    GlobalSecondaryIndexes:
+      - IndexName: FollowerIndex
         KeySchema:
           - AttributeName: followerId
             KeyType: HASH
+      - IndexName: FolloweeIndex
+        KeySchema:
           - AttributeName: followeeId
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: FolloweeIndex
-            KeySchema:
-              - AttributeName: followeeId
-                KeyType: HASH
-              - AttributeName: followerId
-                KeyType: RANGE
-        BillingMode: PAY_PER_REQUEST
+            KeyType: HASH
+    BillingMode: PAY_PER_REQUEST
 
     likesTable:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: Likes
         AttributeDefinitions:
+          - AttributeName: likeId
+            AttributeType: S
           - AttributeName: postId
             AttributeType: S
           - AttributeName: userId
             AttributeType: S
         KeySchema:
-          - AttributeName: postId
+          - AttributeName: likeId
             KeyType: HASH
-          - AttributeName: userId
-            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: PostIndex
+            KeySchema:
+              - AttributeName: postId
+                KeyType: HASH
+          - IndexName: UserIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
         BillingMode: PAY_PER_REQUEST
 
     notificationsTable:
@@ -143,6 +154,8 @@ resources:
             AttributeType: S
           - AttributeName: email
             AttributeType: S
+          - AttributeName: isActive
+            AttributeType: S
         KeySchema:
           - AttributeName: userId
             KeyType: HASH
@@ -150,5 +163,9 @@ resources:
           - IndexName: EmailIndex
             KeySchema:
               - AttributeName: email
+                KeyType: HASH
+          - IndexName: isActiveIndex
+            KeySchema:
+              - AttributeName: isActive
                 KeyType: HASH
         BillingMode: PAY_PER_REQUEST

@@ -15,10 +15,13 @@ import java.time.Instant;
 @DynamoDBTable(tableName = "Likes")
 public class Like {
 
-    @DynamoDBHashKey(attributeName = "postId")
+    @DynamoDBHashKey(attributeName = "likeId")
+    private String likeId;
+
+    @DynamoDBIndexHashKey(globalSecondaryIndexName = "PostIndex", attributeName = "postId")
     private String postId;
 
-    @DynamoDBRangeKey(attributeName = "userId")
+    @DynamoDBIndexHashKey(globalSecondaryIndexName = "UserIndex", attributeName = "userId")
     private String userId;
 
     @DynamoDBAttribute(attributeName = "createdAt")

@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@EnableDynamoDBRepositories(basePackages = "com.newsfeed.repository")
+@EnableDynamoDBRepositories(basePackages = "com.khu.acc.newsfeed.repository")
 public class DynamoDBConfig {
 
     @Value("${aws.region:ap-northeast-2}")
@@ -39,7 +39,7 @@ public class DynamoDBConfig {
         return new DynamoDBMapper(amazonDynamoDB, config);
     }
 
-    @Bean
+    @Bean(name = "amazonDynamoDB")
     @Primary
     @Profile("!local")
     public AmazonDynamoDB amazonDynamoDB() {
@@ -49,7 +49,7 @@ public class DynamoDBConfig {
                 .build();
     }
 
-    @Bean
+    @Bean(name = "amazonDynamoDB")
     @Profile("local")
     public AmazonDynamoDB amazonDynamoDBLocal() {
         return AmazonDynamoDBClientBuilder.standard()

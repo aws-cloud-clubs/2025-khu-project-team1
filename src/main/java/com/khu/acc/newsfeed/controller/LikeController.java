@@ -30,6 +30,7 @@ public class LikeController {
     public ResponseEntity<ApiResponse<LikeResponse>> likePost(
             @PathVariable String postId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.<LikeResponse>builder().build());
 
     }
 
@@ -38,6 +39,7 @@ public class LikeController {
     public ResponseEntity<ApiResponse<Void>> unlikePost(
             @PathVariable String postId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 
     @GetMapping("/posts/{postId}")
@@ -45,6 +47,7 @@ public class LikeController {
     public ResponseEntity<ApiResponse<Page<LikeResponse>>> getPostLikes(
             @PathVariable String postId,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<LikeResponse>>builder().build());
     }
 
     @GetMapping("/posts/{postId}/check")
@@ -52,11 +55,13 @@ public class LikeController {
     public ResponseEntity<ApiResponse<Boolean>> hasLiked(
             @PathVariable String postId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.<Boolean>builder().build());
     }
 
     @GetMapping("/posts/{postId}/count")
     @Operation(summary = "포스트 좋아요 수", description = "포스트의 총 좋아요 수를 조회합니다.")
     public ResponseEntity<ApiResponse<Long>> getPostLikesCount(@PathVariable String postId) {
+        return ResponseEntity.ok(ApiResponse.<Long>builder().build());
     }
 
     @GetMapping("/users/{userId}")
@@ -64,6 +69,6 @@ public class LikeController {
     public ResponseEntity<ApiResponse<Page<LikeResponse>>> getUserLikes(
             @PathVariable String userId,
             @PageableDefault(size = 20) Pageable pageable) {
-
+        return ResponseEntity.ok(ApiResponse.<Page<LikeResponse>>builder().build());
     }
 }

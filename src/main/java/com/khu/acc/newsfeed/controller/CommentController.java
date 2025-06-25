@@ -3,6 +3,7 @@ package com.khu.acc.newsfeed.controller;
 import com.khu.acc.newsfeed.dto.ApiResponse;
 import com.khu.acc.newsfeed.dto.CommentCreateRequest;
 import com.khu.acc.newsfeed.dto.CommentResponse;
+import com.khu.acc.newsfeed.dto.CommentUpdateRequest;
 import com.khu.acc.newsfeed.model.Comment;
 import com.khu.acc.newsfeed.service.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,17 +37,19 @@ public class CommentController {
     public ResponseEntity<ApiResponse<CommentResponse>> createComment(
             @Valid @RequestBody CommentCreateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<CommentResponse>builder().build());
     }
 
     @GetMapping("/{commentId}")
     @Operation(summary = "댓글 조회", description = "댓글 ID로 댓글을 조회합니다.")
     public ResponseEntity<ApiResponse<CommentResponse>> getComment(@PathVariable String commentId) {
+        return ResponseEntity.ok(ApiResponse.<CommentResponse>builder().build());
     }
 
     @GetMapping("/posts/{postId}")
     @Operation(summary = "포스트 댓글 조회", description = "포스트의 댓글들을 조회합니다.")
     public ResponseEntity<ApiResponse<List<CommentResponse>>> getPostComments(@PathVariable String postId) {
+        return ResponseEntity.ok(ApiResponse.<List<CommentResponse>>builder().build());
     }
 
     @GetMapping("/posts/{postId}/top-level")
@@ -54,12 +57,13 @@ public class CommentController {
     public ResponseEntity<ApiResponse<Page<CommentResponse>>> getTopLevelComments(
             @PathVariable String postId,
             @PageableDefault(size = 20) Pageable pageable) {
-
+        return ResponseEntity.ok(ApiResponse.<Page<CommentResponse>>builder().build());
     }
 
     @GetMapping("/{commentId}/replies")
     @Operation(summary = "대댓글 조회", description = "댓글의 대댓글들을 조회합니다.")
     public ResponseEntity<ApiResponse<List<CommentResponse>>> getReplies(@PathVariable String commentId) {
+        return ResponseEntity.ok(ApiResponse.<List<CommentResponse>>builder().build());
     }
 
     @PutMapping("/{commentId}")
@@ -68,7 +72,7 @@ public class CommentController {
             @PathVariable String commentId,
             @Valid @RequestBody CommentUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<CommentResponse>builder().build());
     }
 
     @DeleteMapping("/{commentId}")
@@ -76,7 +80,7 @@ public class CommentController {
     public ResponseEntity<ApiResponse<Void>> deleteComment(
             @PathVariable String commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 
     private String extractUserIdFromUserDetails(UserDetails userDetails) {

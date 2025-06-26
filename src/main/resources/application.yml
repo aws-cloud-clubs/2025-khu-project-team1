@@ -182,7 +182,7 @@ spring:
             timeout: 3000ms
 
 aws:
-    region: ${AWS_REGION:ap-northeast-2}
+    region: ap-northeast-2
 
 jwt:
     secret: ${JWT_SECRET}

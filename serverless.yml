@@ -3,7 +3,7 @@ service: news-feed
 provider:
   name: aws
   runtime: java17
-  region: ${env:AWS_REGION}
+  region: ap-northeast-2
 
   environment:
     DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT}
@@ -11,7 +11,6 @@ provider:
     REDIS_PORT: ${env:REDIS_PORT}
     JWT_SECRET: ${env:JWT_SECRET}
     JWT_EXPIRATION: ${env:JWT_EXPIRATION}
-    AWS_REGION: ${env:AWS_REGION}
 
 package:
   artifact: build/distributions/news-feed-0.0.1-SNAPSHOT.zip

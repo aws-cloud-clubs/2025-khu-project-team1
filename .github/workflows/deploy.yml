@@ -39,7 +39,6 @@ jobs:
           args: deploy
         env:
           DYNAMODB_ENDPOINT: ${{secrets.DYNAMODB_ENDPOINT}}
-          AWS_REGION: ${{secrets.AWS_REGION}}
           REDIS_HOST: ${{secrets.REDIS_HOST}}
           REDIS_PORT: ${{secrets.REDIS_PORT}}
           JWT_SECRET: ${{secrets.JWT_SECRET}}

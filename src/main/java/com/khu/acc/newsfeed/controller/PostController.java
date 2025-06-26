@@ -36,13 +36,13 @@ public class PostController {
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
             @Valid @RequestBody PostCreateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<PostResponse>builder().build());
     }
 
     @GetMapping("/{postId}")
     @Operation(summary = "포스트 조회", description = "포스트 ID로 포스트를 조회합니다.")
     public ResponseEntity<ApiResponse<PostResponse>> getPost(@PathVariable String postId) {
-
+        return ResponseEntity.ok(ApiResponse.<PostResponse>builder().build());
     }
 
     @GetMapping("/user/{userId}")
@@ -50,12 +50,14 @@ public class PostController {
     public ResponseEntity<ApiResponse<Page<PostResponse>>> getUserPosts(
             @PathVariable String userId,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<PostResponse>>builder().build());
     }
 
     @GetMapping("/trending")
     @Operation(summary = "트렌딩 포스트", description = "인기 있는 포스트들을 조회합니다.")
     public ResponseEntity<ApiResponse<Page<PostResponse>>> getTrendingPosts(
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<PostResponse>>builder().build());
     }
 
     @GetMapping("/tag/{tag}")
@@ -63,11 +65,13 @@ public class PostController {
     public ResponseEntity<ApiResponse<Page<PostResponse>>> getPostsByTag(
             @PathVariable String tag,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<PostResponse>>builder().build());
     }
 
     @GetMapping("/search")
     @Operation(summary = "포스트 검색", description = "내용으로 포스트를 검색합니다.")
     public ResponseEntity<ApiResponse<List<PostResponse>>> searchPosts(@RequestParam String content) {
+        return ResponseEntity.ok(ApiResponse.<List<PostResponse>>builder().build());
     }
 
     @PutMapping("/{postId}")
@@ -76,7 +80,7 @@ public class PostController {
             @PathVariable String postId,
             @Valid @RequestBody PostUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<PostResponse>builder().build());
     }
 
     @DeleteMapping("/{postId}")
@@ -84,6 +88,6 @@ public class PostController {
     public ResponseEntity<ApiResponse<Void>> deletePost(
             @PathVariable String postId,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 }

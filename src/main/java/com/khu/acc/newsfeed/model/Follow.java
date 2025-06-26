@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import org.springframework.data.annotation.Id;
 
 @Data
 @Builder
@@ -15,24 +16,16 @@ import java.time.Instant;
 @DynamoDBTable(tableName = "Follows")
 public class Follow {
 
-    @DynamoDBHashKey(attributeName = "followerId")
+    @DynamoDBHashKey(attributeName = "followId")
+    private String followId;
+
+    @DynamoDBIndexHashKey(globalSecondaryIndexName = "FollowerIndex", attributeName = "followerId")
     private String followerId;
 
-    @DynamoDBRangeKey(attributeName = "followeeId")
+    @DynamoDBIndexHashKey(globalSecondaryIndexName = "FolloweeIndex", attributeName = "followeeId")
     private String followeeId;
 
     @DynamoDBAttribute(attributeName = "createdAt")
     @DynamoDBTypeConverted(converter = InstantConverter.class)
     private Instant createdAt;
-
-    // GSI for reverse lookup (followers of a user)
-    @DynamoDBIndexHashKey(globalSecondaryIndexName = "FolloweeIndex")
-    public String getFolloweeId() {
-        return followeeId;
-    }
-
-    @DynamoDBIndexRangeKey(globalSecondaryIndexName = "FolloweeIndex")
-    public String getFollowerId() {
-        return followerId;
-    }
 }

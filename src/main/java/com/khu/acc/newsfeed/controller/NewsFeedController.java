@@ -31,6 +31,7 @@ public class NewsFeedController {
     public ResponseEntity<ApiResponse<List<PostResponse>>> getNewsFeed(
             @AuthenticationPrincipal UserDetails userDetails,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<List<PostResponse>>builder().build());
     }
 
     @GetMapping("/personalized")
@@ -38,11 +39,13 @@ public class NewsFeedController {
     public ResponseEntity<ApiResponse<List<PostResponse>>> getPersonalizedFeed(
             @AuthenticationPrincipal UserDetails userDetails,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<List<PostResponse>>builder().build());
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "피드 새로고침", description = "사용자의 피드 캐시를 새로고침합니다.")
     public ResponseEntity<ApiResponse<Void>> refreshFeed(@AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 
     private String extractUserIdFromUserDetails(UserDetails userDetails) {

@@ -31,7 +31,7 @@ public class FollowController {
     public ResponseEntity<ApiResponse<FollowResponse>> followUser(
             @PathVariable String followeeId,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<FollowResponse>builder().build());
     }
 
     @DeleteMapping("/{followeeId}")
@@ -39,7 +39,7 @@ public class FollowController {
     public ResponseEntity<ApiResponse<Void>> unfollowUser(
             @PathVariable String followeeId,
             @AuthenticationPrincipal UserDetails userDetails) {
-
+        return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 
     @GetMapping("/{userId}/following")
@@ -47,6 +47,7 @@ public class FollowController {
     public ResponseEntity<ApiResponse<Page<FollowResponse>>> getFollowing(
             @PathVariable String userId,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<FollowResponse>>builder().build());
     }
 
     @GetMapping("/{userId}/followers")
@@ -54,6 +55,7 @@ public class FollowController {
     public ResponseEntity<ApiResponse<Page<FollowResponse>>> getFollowers(
             @PathVariable String userId,
             @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<FollowResponse>>builder().build());
     }
 
     @GetMapping("/{followeeId}/is-following")
@@ -61,11 +63,13 @@ public class FollowController {
     public ResponseEntity<ApiResponse<Boolean>> isFollowing(
             @PathVariable String followeeId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.<Boolean>builder().build());
     }
 
     @GetMapping("/{userId}/stats")
     @Operation(summary = "팔로우 통계", description = "사용자의 팔로워/팔로잉 수를 조회합니다.")
     public ResponseEntity<ApiResponse<FollowStats>> getFollowStats(@PathVariable String userId) {
+        return ResponseEntity.ok(ApiResponse.<FollowStats>builder().build());
     }
 
     private String extractUserIdFromUserDetails(UserDetails userDetails) {

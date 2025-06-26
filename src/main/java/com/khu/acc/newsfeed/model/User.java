@@ -49,7 +49,8 @@ public class User {
     private Set<String> interests;
 
     @DynamoDBAttribute(attributeName = "isActive")
-    private Boolean isActive = true;
+    @DynamoDBIndexHashKey(globalSecondaryIndexName = "isActiveIndex")
+    private String isActive = "true";
 
     @DynamoDBAttribute(attributeName = "createdAt")
     @DynamoDBTypeConverted(converter = InstantConverter.class)

@@ -141,7 +141,9 @@ tasks.register('buildZip', Zip) {
 	dependsOn bootJar
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 	from {
-		bootJar.archiveFile.map { zipTree(it) }
+		zipTree(bootJar.archiveFile).matching {
+			exclude '**/META-INF/*.SF', '**/META-INF/*.DSA', '**/META-INF/*.RSA'
+		}
 	}
 	destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 	archiveFileName.set("news-feed-0.0.1-SNAPSHOT.zip")

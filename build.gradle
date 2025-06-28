@@ -139,6 +139,7 @@ tasks.named('test') {
 
 tasks.register('buildZip', Zip) {
 	dependsOn bootJar
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 	from {
 		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
 	}

@@ -138,15 +138,11 @@ tasks.named('test') {
 }
 
 tasks.register('buildZip', Zip) {
-	dependsOn bootJar
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-	from {
-		zipTree(bootJar.archiveFile)
+	from compileJava
+	from processResources
+	into('lib') {
+		from configurations.runtimeClasspath
 	}
-
-	destinationDirectory.set(layout.buildDirectory.dir("distributions"))
-	archiveFileName.set("news-feed-0.0.1-SNAPSHOT.zip")
 }
 
 if (project.hasProperty('docker')) {

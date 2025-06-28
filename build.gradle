@@ -141,11 +141,8 @@ tasks.register('buildZip', Zip) {
 	dependsOn bootJar
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 	from {
-		configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+		bootJar.archiveFile.map { zipTree(it) }
 	}
-	from compileJava
-	from processResources
-	from bootJar.archiveFile.map { zipTree(it) }
 	destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 	archiveFileName.set("news-feed-0.0.1-SNAPSHOT.zip")
 }

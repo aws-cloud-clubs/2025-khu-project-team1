@@ -138,11 +138,11 @@ tasks.named('test') {
 }
 
 tasks.register('buildZip', Zip) {
-	dependsOn bootJar
 	from compileJava
 	from processResources
-	from bootJar.archiveFile.map { zipTree(it) }
-	destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+	into('lib') {
+		from configurations.runtimeClasspath
+	}
 }
 
 if (project.hasProperty('docker')) {

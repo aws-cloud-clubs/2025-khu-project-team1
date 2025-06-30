@@ -107,7 +107,7 @@ package:
 
 functions:
   api:
-    handler: com.khu.acc.newsfeed.StreamLambdaHandler
+    handler: com.khu.acc.newsfeed.config.StreamLambdaHandler
     events:
       - http:
           path: /{proxy+}

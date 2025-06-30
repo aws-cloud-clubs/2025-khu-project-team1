@@ -49,3 +49,10 @@ yarn-error.log*
 
 ### Serverless ###
 .serverless/
+
+### Node.js ###
+node_modules/
+follow-lambda/node_modules/
+
+### Serverless build artifacts ###
+follow-lambda/.serverless/

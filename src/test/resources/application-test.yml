@@ -1,0 +1,32 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.cloud.aws.autoconfigure.context.ContextInstanceDataAutoConfiguration
+      - org.springframework.cloud.aws.autoconfigure.context.ContextStackAutoConfiguration
+      - org.springframework.cloud.aws.autoconfigure.context.ContextRegionProviderAutoConfiguration
+      - org.springframework.cloud.aws.autoconfigure.context.ContextCredentialsAutoConfiguration
+      - org.springframework.cloud.aws.autoconfigure.messaging.SqsAutoConfiguration
+      - org.springframework.cloud.aws.autoconfigure.messaging.SnsAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.AwsAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.RegionProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.CredentialsProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
+      - io.awspring.cloud.autoconfigure.sqs.SqsAutoConfiguration
+
+aws:
+  region: us-east-1
+  dynamodb:
+    endpoint: http://localhost:8000
+
+# Disable DynamoDB repositories for basic context loading test
+amazon:
+  dynamodb:
+    endpoint: http://localhost:8000
+    region: us-east-1
+
+logging:
+  level:
+    com.khu.acc.newsfeed: DEBUG
+    org.springframework: WARN
+    org.springframework.test: DEBUG

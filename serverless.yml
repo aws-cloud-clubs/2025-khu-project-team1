@@ -1,9 +1,11 @@
-service: news-feed
+service: khu-newsfeed-v2
+useDotenv: true
 
 provider:
   name: aws
   runtime: java17
   region: ap-northeast-2
+  stage: ${opt:stage, 'dev'}
 
   environment:
     DYNAMODB_ENDPOINT: ${env:DYNAMODB_ENDPOINT}
@@ -11,6 +13,94 @@ provider:
     REDIS_PORT: ${env:REDIS_PORT}
     JWT_SECRET: ${env:JWT_SECRET}
     JWT_EXPIRATION: ${env:JWT_EXPIRATION}
+    NEWS_FEED_FANOUT_QUEUE_URL: https://sqs.${aws:region}.amazonaws.com/${aws:accountId}/news-feed-fanout-queue-${self:provider.stage}
+    NOTIFICATION_QUEUE_URL: https://sqs.${aws:region}.amazonaws.com/${aws:accountId}/notification-queue-${self:provider.stage}
+    POST_EVENTS_TOPIC_ARN: arn:aws:sns:${aws:region}:${aws:accountId}:post-events-topic-${self:provider.stage}
+    LIKE_COUNT_QUEUE_URL: !Ref LikeCountQueue
+    S3_BUCKET_NAME: !Ref ImageStorageBucket
+    CLOUDFRONT_DOMAIN: !GetAtt ImageCDN.DomainName
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - arn:aws:sqs:${aws:region}:${aws:accountId}:news-feed-fanout-queue-${self:provider.stage}
+        - arn:aws:sqs:${aws:region}:${aws:accountId}:notification-queue-${self:provider.stage}
+        - !GetAtt LikeCountQueue.Arn
+    - Effect: Allow
+      Action:
+        - sns:Publish
+        - sns:GetTopicAttributes
+      Resource:
+        - arn:aws:sns:${aws:region}:${aws:accountId}:post-events-topic-${self:provider.stage}
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:BatchGetItem
+        - dynamodb:BatchWriteItem
+      Resource:
+        - !GetAtt postsTable.Arn
+        - !GetAtt commentsTable.Arn
+        - !GetAtt likesTable.Arn
+        - !GetAtt commentLikesTable.Arn
+        - !GetAtt followsTable.Arn
+        - !GetAtt usersTable.Arn
+        - !GetAtt newsFeedTable.Arn
+        - !GetAtt notificationsTable.Arn
+        - !GetAtt likeCountBufferTable.Arn
+        - !Sub "${postsTable.Arn}/index/*"
+        - !Sub "${commentsTable.Arn}/index/*"
+        - !Sub "${likesTable.Arn}/index/*"
+        - !Sub "${commentLikesTable.Arn}/index/*"
+        - !Sub "${followsTable.Arn}/index/*"
+        - !Sub "${usersTable.Arn}/index/*"
+        - !Sub "${newsFeedTable.Arn}/index/*"
+        - !Sub "${notificationsTable.Arn}/index/*"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeStream
+        - dynamodb:GetRecords
+        - dynamodb:GetShardIterator
+        - dynamodb:ListStreams
+      Resource:
+        - !GetAtt postsTable.StreamArn
+        - !GetAtt commentsTable.StreamArn
+        - !GetAtt likesTable.StreamArn
+        - !GetAtt commentLikesTable.StreamArn
+        - !GetAtt followsTable.StreamArn
+        - !GetAtt newsFeedTable.StreamArn
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: "arn:aws:logs:*:*:*"
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+        - s3:GetObjectVersion
+        - s3:PutObjectAcl
+        - s3:GetObjectAcl
+      Resource:
+        - !Sub "arn:aws:s3:::${ImageStorageBucket}/*"
+    - Effect: Allow
+      Action:
+        - s3:ListBucket
+        - s3:GetBucketLocation
+        - s3:GetBucketVersioning
+      Resource:
+        - !Sub "arn:aws:s3:::${ImageStorageBucket}"
 
 package:
   artifact: build/distributions/news-feed-0.0.1-SNAPSHOT.zip
@@ -23,12 +113,150 @@ functions:
           path: /{proxy+}
           method: any
 
+  # DynamoDB Stream Processors
+  postStreamProcessor:
+    handler: com.khu.acc.newsfeed.stream.PostStreamProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 10
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt postsTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+
+  commentStreamProcessor:
+    handler: com.khu.acc.newsfeed.stream.CommentStreamProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 10
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt commentsTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+
+  likeStreamProcessor:
+    handler: com.khu.acc.newsfeed.stream.LikeStreamProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 10
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt likesTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+
+  commentLikeStreamProcessor:
+    handler: com.khu.acc.newsfeed.stream.CommentLikeStreamProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 10
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt commentLikesTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+
+  followStreamProcessor:
+    handler: com.khu.acc.newsfeed.stream.FollowStreamProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 10
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt followsTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+
+  newsFeedStreamProcessor:
+    handler: com.khu.acc.newsfeed.stream.NewsFeedStreamProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 5
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt newsFeedTable.StreamArn
+          batchSize: 10
+          startingPosition: LATEST
+
+  # Image Pipeline Functions
+  getPresignedUrl:
+    handler: com.khu.acc.newsfeed.image.GetPresignedUrlLambda
+    memorySize: 256
+    timeout: 30
+    environment:
+      S3_BUCKET_NAME: !Ref ImageStorageBucket
+      CLOUDFRONT_DOMAIN: !GetAtt ImageCDN.DomainName
+    events:
+      - http:
+          path: /api/v1/images/upload-url
+          method: post
+          cors: true
+
+  imageProcessing:
+    handler: com.khu.acc.newsfeed.image.ImageProcessingLambda
+    memorySize: 1024
+    timeout: 300
+    environment:
+      S3_BUCKET_NAME: !Ref ImageStorageBucket
+      CLOUDFRONT_DOMAIN: !GetAtt ImageCDN.DomainName
+    events:
+      - s3:
+          bucket: ${self:service}-image-storage-${self:provider.stage}
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: originals/
+          existing: true
+
+  # News Feed Fanout Function
+  newsFeedFanout:
+    handler: com.khu.acc.newsfeed.newsfeed.messaging.NewsFeedFanoutLambda
+    memorySize: 512
+    timeout: 300
+    reservedConcurrency: 20
+    events:
+      - sns:
+          topicName: post-events-topic-${self:provider.stage}
+          filterPolicy:
+            eventType:
+              - POST_CREATED
+              - POST_UPDATED
+              - POST_DELETED
+
+  # Like Event Processing Functions
+  likeEventProcessor:
+    handler: com.khu.acc.newsfeed.lambda.LikeEventProcessor
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 10
+    events:
+      - sqs:
+          arn: !GetAtt LikeCountQueue.Arn
+          batchSize: 10
+
+  likeCountAggregator:
+    handler: com.khu.acc.newsfeed.lambda.LikeCountAggregator
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 1
+    events:
+      - schedule: rate(1 minute)
+
 resources:
   Resources:
     commentsTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
-        TableName: Comments
+        TableName: Comments-${self:provider.stage}
         AttributeDefinitions:
           - AttributeName: commentId
             AttributeType: S
@@ -49,11 +277,15 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
 
     followsTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
-        TableName: Follows
+        TableName: Follows-${self:provider.stage}
         AttributeDefinitions:
           - AttributeName: followId
             AttributeType: S
@@ -78,11 +310,15 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
 
     likesTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
-        TableName: Likes
+        TableName: Likes-${self:provider.stage}
         AttributeDefinitions:
           - AttributeName: likeId
             AttributeType: S
@@ -107,11 +343,54 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+    commentLikesTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        TableName: CommentLikes-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: commentLikeId
+            AttributeType: S
+          - AttributeName: commentId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: commentLikeId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: CommentLikesIndex
+            KeySchema:
+              - AttributeName: commentId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: UserCommentLikesIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
 
     notificationsTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
-        TableName: Notifications
+        TableName: Notifications-${self:provider.stage}
         AttributeDefinitions:
           - AttributeName: notificationId
             AttributeType: S
@@ -135,8 +414,10 @@ resources:
 
     postsTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
-        TableName: Posts
+        TableName: Posts-${self:provider.stage}
         AttributeDefinitions:
           - AttributeName: postId
             AttributeType: S
@@ -157,11 +438,15 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
 
     usersTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
-        TableName: Users
+        TableName: Users-${self:provider.stage}
         AttributeDefinitions:
           - AttributeName: userId
             AttributeType: S
@@ -186,3 +471,160 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+
+    newsFeedTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        TableName: NewsFeed-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: sortKey
+            AttributeType: S
+          - AttributeName: postId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: sortKey
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: PostIndex
+            KeySchema:
+              - AttributeName: postId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+    likeCountBufferTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        TableName: LikeCountBuffer-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: postId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: postId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    LikeCountQueue:
+      Type: AWS::SQS::Queue
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        QueueName: like-count-queue-${self:provider.stage}
+        VisibilityTimeout: 30
+        MessageRetentionPeriod: 1209600
+        DelaySeconds: 0
+        ReceiveMessageWaitTimeSeconds: 1
+
+    # Image Pipeline Resources
+    ImageStorageBucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        BucketName: ${self:service}-image-storage-${self:provider.stage}
+        VersioningConfiguration:
+          Status: Enabled
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
+              AllowedOrigins: ['*']
+              MaxAge: 3000
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
+    ImageStorageBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        Bucket: !Ref ImageStorageBucket
+        PolicyDocument:
+          Statement:
+            - Sid: AllowCloudFrontAccess
+              Effect: Allow
+              Principal:
+                AWS: !Sub 'arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${ImageCloudFrontOAI}'
+              Action: s3:GetObject
+              Resource: !Sub 'arn:aws:s3:::${ImageStorageBucket}/processed/*'
+
+    ImageCloudFrontOAI:
+      Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        CloudFrontOriginAccessIdentityConfig:
+          Comment: 'OAI for Image Storage Bucket'
+
+    ImageCDN:
+      Type: AWS::CloudFront::Distribution
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        DistributionConfig:
+          Origins:
+            - DomainName: !GetAtt ImageStorageBucket.RegionalDomainName
+              Id: ImageS3Origin
+              S3OriginConfig:
+                OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${ImageCloudFrontOAI}'
+              OriginPath: /processed
+          Enabled: true
+          Comment: 'CDN for processed images'
+          DefaultCacheBehavior:
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            TargetOriginId: ImageS3Origin
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
+              Headers:
+                - Origin
+                - Access-Control-Request-Method
+                - Access-Control-Request-Headers
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # Managed-CachingOptimized
+          CacheBehaviors:
+            - PathPattern: '*.jpg'
+              TargetOriginId: ImageS3Origin
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            - PathPattern: '*.jpeg'
+              TargetOriginId: ImageS3Origin
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            - PathPattern: '*.png'
+              TargetOriginId: ImageS3Origin
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            - PathPattern: '*.webp'
+              TargetOriginId: ImageS3Origin
+              ViewerProtocolPolicy: redirect-to-https
+              AllowedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          PriceClass: PriceClass_100

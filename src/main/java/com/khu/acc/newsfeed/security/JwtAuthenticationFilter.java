@@ -1,5 +1,6 @@
 package com.khu.acc.newsfeed.security;
 
+import com.khu.acc.newsfeed.common.util.SecurityContextUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+                // JWT 토큰을 ThreadLocal에 저장 (Lambda 환경에서 userId 추출용)
+                SecurityContextUtil.JwtTokenHolder.setCurrentToken(jwt);
+                
                 String username = jwtTokenProvider.getUsernameFromToken(jwt);
 
                 if (userDetailsService != null) {
@@ -54,7 +58,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("Could not set user authentication in security context", ex);
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // 요청 처리 완료 후 ThreadLocal 정리
+            SecurityContextUtil.JwtTokenHolder.clear();
+        }
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

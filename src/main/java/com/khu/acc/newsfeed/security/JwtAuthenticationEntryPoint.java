@@ -1,7 +1,7 @@
 package com.khu.acc.newsfeed.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.khu.acc.newsfeed.dto.ApiResponse;
+import com.khu.acc.newsfeed.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;

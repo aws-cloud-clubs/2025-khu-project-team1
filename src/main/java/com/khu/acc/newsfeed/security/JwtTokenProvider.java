@@ -28,16 +28,22 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
-    public String generateToken(Authentication authentication) {
+    public String generateToken(Authentication authentication, String userId) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
         Date expiryDate = new Date(System.currentTimeMillis() + jwtExpirationMs);
 
         return Jwts.builder()
                 .setSubject(userPrincipal.getUsername())
+                .claim("userId", userId) // userId를 JWT 클레임에 포함
                 .setIssuedAt(new Date())
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    // 기존 메서드 호환성을 위한 오버로드
+    public String generateToken(Authentication authentication) {
+        return generateToken(authentication, null);
     }
 
     public String generateRefreshToken(Authentication authentication) {
@@ -61,6 +67,17 @@ public class JwtTokenProvider {
 
         return claims.getSubject();
     }
+
+    public String getUserIdFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.get("userId", String.class);
+    }
+
 
     public boolean validateToken(String token) {
         try {

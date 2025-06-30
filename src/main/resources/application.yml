@@ -53,6 +53,12 @@ aws:
     region: ap-northeast-2
     dynamodb:
         endpoint:  ${DYNAMODB_ENDPOINT}
+    sqs:
+        news-feed-fanout-queue-url: ${NEWS_FEED_FANOUT_QUEUE_URL:}
+        notification-queue-url: ${NOTIFICATION_QUEUE_URL:}
+        like-count-queue-url: ${LIKE_COUNT_QUEUE_URL:}
+    sns:
+        post-events-topic-arn: ${POST_EVENTS_TOPIC_ARN:}
 
 jwt:
     secret: mySecretKey123456789mySecretKey123456789mySecretKey123456789
@@ -118,6 +124,55 @@ springdoc:
         use-root-path: true
         show-actuator: true
 
+resilience4j:
+    circuitbreaker:
+        instances:
+            post-event-handler:
+                registerHealthIndicator: true
+                slidingWindowSize: 10
+                slidingWindowType: COUNT_BASED
+                minimumNumberOfCalls: 5
+                failureRateThreshold: 50
+                waitDurationInOpenState: 30s
+                slowCallRateThreshold: 100
+                slowCallDurationThreshold: 60s
+                permittedNumberOfCallsInHalfOpenState: 3
+                automaticTransitionFromOpenToHalfOpenEnabled: true
+            newsfeed-fanout:
+                registerHealthIndicator: true
+                slidingWindowSize: 20
+                slidingWindowType: COUNT_BASED
+                minimumNumberOfCalls: 10
+                failureRateThreshold: 30
+                waitDurationInOpenState: 60s
+                slowCallRateThreshold: 100
+                slowCallDurationThreshold: 30s
+                permittedNumberOfCallsInHalfOpenState: 5
+                automaticTransitionFromOpenToHalfOpenEnabled: true
+    retry:
+        instances:
+            post-event-handler:
+                maxRetryAttempts: 3
+                waitDuration: 2s
+                enableExponentialBackoff: true
+                exponentialBackoffMultiplier: 2
+                retryExceptions:
+                    - java.io.IOException
+                    - java.util.concurrent.TimeoutException
+                    - org.springframework.dao.OptimisticLockingFailureException
+                ignoreExceptions:
+                    - java.lang.IllegalArgumentException
+            newsfeed-fanout:
+                maxRetryAttempts: 2
+                waitDuration: 1s
+                enableExponentialBackoff: true
+                exponentialBackoffMultiplier: 1.5
+                retryExceptions:
+                    - java.io.IOException
+                    - java.util.concurrent.TimeoutException
+                ignoreExceptions:
+                    - java.lang.IllegalArgumentException
+
 ---
 
 spring:
@@ -133,6 +188,12 @@ aws:
     region: ap-northeast-2
     dynamodb:
         endpoint: http://localhost:8000
+    sqs:
+        news-feed-fanout-queue-url: news-feed-fanout-queue
+        notification-queue-url: notification-queue
+        like-count-queue-url: like-count-queue
+    sns:
+        post-events-topic-arn: arn:aws:sns:ap-northeast-2:123456789012:post-events-topic
 
 jwt:
     secret: localDevelopmentSecretKeyForTestingPurposeOnly123456789
@@ -159,6 +220,12 @@ aws:
     region: us-east-1
     dynamodb:
         endpoint: http://localhost:8000
+    sqs:
+        news-feed-fanout-queue-url: test-news-feed-fanout-queue
+        notification-queue-url: test-notification-queue
+        like-count-queue-url: test-like-count-queue
+    sns:
+        post-events-topic-arn: arn:aws:sns:us-east-1:123456789012:test-post-events-topic
 
 jwt:
     secret: testSecretKeyForUnitTestingPurposeOnly123456789
@@ -203,3 +270,41 @@ management:
                 enabled: true
                 namespace: NewsFeed/Production
                 batch-size: 20
+
+---
+
+spring:
+    config:
+        activate:
+            on-profile: lambda
+    main:
+        lazy-initialization: true  # Lambda 콜드 스타트 최적화
+        
+aws:
+    region: ${AWS_REGION:ap-northeast-2}
+    
+jwt:
+    secret: ${JWT_SECRET}
+    expiration: ${JWT_EXPIRATION:86400000}
+    
+# Lambda 환경에서는 CloudWatch가 자동으로 로그를 수집하므로 최소한의 설정만 사용
+logging:
+    level:
+        com.khu.acc.newsfeed: INFO
+        com.amazonaws: WARN
+        org.springframework: WARN
+        software.amazon.awssdk: WARN
+    pattern:
+        console: "[%level] %logger{36} - %msg%n"  # 간결한 패턴
+        
+management:
+    endpoints:
+        web:
+            exposure:
+                include: health  # Lambda에서는 health check만 노출
+    metrics:
+        export:
+            cloudwatch:
+                enabled: true
+                namespace: NewsFeed/Lambda
+                batch-size: 10  # Lambda의 짧은 실행 시간 고려

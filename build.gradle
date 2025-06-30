@@ -88,10 +88,13 @@ dependencies {
 	implementation 'org.springframework:spring-webflux'
 	implementation 'io.netty:netty-resolver-dns-native-macos:4.1.108.Final:osx-aarch_64'
 
-	// Async Processing
+	// Async Processing & Messaging
 	//implementation 'org.springframework.boot:spring-boot-starter-amqp'
 	implementation 'software.amazon.awssdk:sqs'
 	implementation 'software.amazon.awssdk:sns'
+	
+	// SNS for Lambda event publishing (keep only SNS)
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-sns:3.2.1'
 
 	// API Documentation
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'

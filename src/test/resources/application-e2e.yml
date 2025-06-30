@@ -1,0 +1,24 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+aws:
+  region: us-east-1
+  dynamodb:
+    endpoint: http://localhost:8000
+  sqs:
+    news-feed-fanout-queue-url: test-news-feed-fanout-queue
+    notification-queue-url: test-notification-queue
+  sns:
+    post-events-topic-arn: arn:aws:sns:us-east-1:123456789012:test-post-events-topic
+
+jwt:
+  secret: testSecretKeyForE2ETestingPurposeOnly123456789
+  expiration: 3600000  # 1시간
+
+logging:
+  level:
+    com.khu.acc.newsfeed: DEBUG
+    org.springframework.test: DEBUG
+    org.springframework.web: DEBUG

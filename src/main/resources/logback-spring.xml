@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <!-- 기본 로그 설정 -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}/}newsfeed-api.log}"/>
+    
+    <!-- 콘솔 출력 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+    
+    <!-- 파일 출력 (롤링) -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <file>${LOG_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    
+    <!-- local 프로파일 (개발 환경) -->
+    <springProfile name="local">
+        <logger name="com.khu.acc.newsfeed" level="DEBUG"/>
+        <logger name="org.springframework.web" level="DEBUG"/>
+        <logger name="org.springframework.security" level="DEBUG"/>
+        <logger name="org.springframework.cache" level="DEBUG"/>
+        <logger name="org.springframework.data.redis" level="DEBUG"/>
+        
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+    
+    <!-- test 프로파일 (테스트 환경) -->
+    <springProfile name="test">
+        <logger name="com.khu.acc.newsfeed" level="DEBUG"/>
+        <logger name="org.springframework.test" level="DEBUG"/>
+        <logger name="org.springframework.security" level="INFO"/>
+        
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+    
+    <!-- prod 프로파일 (운영 환경) -->
+    <springProfile name="prod">
+        <logger name="com.khu.acc.newsfeed" level="INFO"/>
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="software.amazon.awssdk" level="ERROR"/>
+        
+        <!-- 운영 환경에서는 JSON 형식으로 로그 출력 (로그 수집 시스템용) -->
+        <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"service":"newsfeed-api","environment":"production"}</customFields>
+            </encoder>
+            <file>/var/log/newsfeed/application.json</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>/var/log/newsfeed/application.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+        </appender>
+        
+        <root level="INFO">
+            <appender-ref ref="JSON_FILE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+    
+    <!-- lambda 프로파일 (AWS Lambda 환경) -->
+    <springProfile name="lambda">
+        <!-- Lambda는 CloudWatch로 자동 전송되므로 콘솔만 사용 -->
+        <appender name="LAMBDA_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <!-- Lambda에서는 간단한 패턴 사용 (타임스탬프는 CloudWatch가 추가) -->
+                <pattern>[%level] %logger{36} - %msg%n</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+        
+        <logger name="com.khu.acc.newsfeed" level="INFO"/>
+        <logger name="com.amazonaws" level="WARN"/>
+        <logger name="software.amazon.awssdk" level="WARN"/>
+        <logger name="org.springframework" level="WARN"/>
+        
+        <root level="WARN">
+            <appender-ref ref="LAMBDA_CONSOLE"/>
+        </root>
+    </springProfile>
+    
+    <!-- 기본 설정 (프로파일이 지정되지 않은 경우) -->
+    <springProfile name="!local,!test,!prod,!lambda">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

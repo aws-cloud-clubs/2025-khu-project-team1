@@ -86,7 +86,7 @@ public class SecurityConfig {
 
         // 허용할 Origin 설정
         configuration.setAllowedOriginPatterns(Arrays.asList(
-                "http://localhost:8080",
+                "*",
                 "https://*.amazonaws.com"    // AWS 관련
         ));
 

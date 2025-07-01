@@ -1,80 +1,255 @@
-package com.khu.acc.newsfeed.controller;
+package com.khu.acc.newsfeed.service;
 
-
-import com.khu.acc.newsfeed.dto.ApiResponse;
 import com.khu.acc.newsfeed.dto.FollowResponse;
-import com.khu.acc.newsfeed.service.FollowService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.khu.acc.newsfeed.model.Follow;
+import com.khu.acc.newsfeed.model.User;
+import com.khu.acc.newsfeed.repository.FollowRepository;
+import com.khu.acc.newsfeed.repository.UserRepository;
+import com.khu.acc.newsfeed.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
-@RestController
-@RequestMapping("/api/v1/follows")
+@Transactional
+@Service
 @RequiredArgsConstructor
-@Tag(name = "Follow Management", description = "팔로우 관리 API")
-public class FollowController {
+public class FollowService {
 
-    private final FollowService followService;
+    private final FollowRepository followRepository;
+    private final UserRepository userRepository;
+    private final NewsFeedService newsFeedService;
 
-    @PostMapping("/{followeeId}")
-    @Operation(summary = "팔로우", description = "사용자를 팔로우합니다.")
-    public ResponseEntity<ApiResponse<FollowResponse>> followUser(
-            @PathVariable String followeeId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.<FollowResponse>builder().build());
+    /**
+     * 사용자 팔로우
+     */
+    public FollowResponse followUser(String followerId, String followeeId) {
+        // 자기 자신을 팔로우할 수 없음
+        if (followerId.equals(followeeId)) {
+            throw new IllegalArgumentException("Cannot follow yourself");
+        }
+
+        // 이미 팔로우 중인지 확인
+        if (followRepository.existsByFollowerIdAndFolloweeId(followerId, followeeId)) {
+            throw new IllegalStateException("Already following this user");
+        }
+
+        // 팔로우할 사용자가 존재하는지 확인
+        User followee = userRepository.findById(followeeId)
+                .orElseThrow(() -> ResourceNotFoundException.user(followeeId));
+
+        User follower = userRepository.findById(followerId)
+                .orElseThrow(() -> ResourceNotFoundException.user(followerId));
+
+        // 팔로우 관계 생성
+        Follow follow = Follow.builder()
+                .followId(generateFollowId())
+                .followerId(followerId)
+                .followeeId(followeeId)
+                .createdAt(Instant.now())
+                .build();
+
+        followRepository.save(follow);
+
+        // 사용자 통계 업데이트
+        updateUserFollowCounts(followerId, followeeId, true);
+
+        // 캐시 무효화
+        evictFollowCaches(followerId, followeeId);
+
+        log.info("User {} started following user {}", followerId, followeeId);
+
+        return FollowResponse.from(follow);
     }
 
-    @DeleteMapping("/{followeeId}")
-    @Operation(summary = "언팔로우", description = "사용자를 언팔로우합니다.")
-    public ResponseEntity<ApiResponse<Void>> unfollowUser(
-            @PathVariable String followeeId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.<Void>builder().build());
+    /**
+     * 사용자 언팔로우
+     */
+    public void unfollowUser(String followerId, String followeeId) {
+        Follow follow = followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId)
+                .orElseThrow(() -> new IllegalStateException("Not following this user"));
+
+        followRepository.delete(follow);
+
+        // 사용자 통계 업데이트
+        updateUserFollowCounts(followerId, followeeId, false);
+
+        // 캐시 무효화
+        evictFollowCaches(followerId, followeeId);
+
+        log.info("User {} stopped following user {}", followerId, followeeId);
     }
 
-    @GetMapping("/{userId}/following")
-    @Operation(summary = "팔로잉 목록", description = "사용자가 팔로우하는 사람들의 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<Page<FollowResponse>>> getFollowing(
-            @PathVariable String userId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.<Page<FollowResponse>>builder().build());
+    /**
+     * 팔로잉 목록 조회
+     */
+    @Cacheable(value = "followings", key = "#userId + '_' + #pageable.pageNumber")
+    public Page<FollowResponse> getFollowing(String userId, Pageable pageable) {
+        Page<Follow> follows = followRepository.findByFollowerIdOrderByCreatedAtDesc(userId, pageable);
+
+        return follows.map(follow -> {
+            FollowResponse response = FollowResponse.from(follow);
+            // 팔로우된 사용자 정보 추가
+            userRepository.findById(follow.getFolloweeId())
+                    .ifPresent(user -> response.setFollowee(
+                            com.khu.acc.newsfeed.dto.UserResponse.from(user)));
+            return response;
+        });
     }
 
-    @GetMapping("/{userId}/followers")
-    @Operation(summary = "팔로워 목록", description = "사용자를 팔로우하는 사람들의 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<Page<FollowResponse>>> getFollowers(
-            @PathVariable String userId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.<Page<FollowResponse>>builder().build());
+    /**
+     * 팔로워 목록 조회
+     */
+    @Cacheable(value = "followers", key = "#userId + '_' + #pageable.pageNumber")
+    public Page<FollowResponse> getFollowers(String userId, Pageable pageable) {
+        Page<Follow> follows = followRepository.findByFolloweeIdOrderByCreatedAtDesc(userId, pageable);
+
+        return follows.map(follow -> {
+            FollowResponse response = FollowResponse.from(follow);
+            // 팔로워 사용자 정보 추가
+            userRepository.findById(follow.getFollowerId())
+                    .ifPresent(user -> response.setFollower(
+                            com.khu.acc.newsfeed.dto.UserResponse.from(user)));
+            return response;
+        });
     }
 
-    @GetMapping("/{followeeId}/is-following")
-    @Operation(summary = "팔로우 상태 확인", description = "현재 사용자가 특정 사용자를 팔로우하고 있는지 확인합니다.")
-    public ResponseEntity<ApiResponse<Boolean>> isFollowing(
-            @PathVariable String followeeId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(ApiResponse.<Boolean>builder().build());
+    /**
+     * 팔로우 상태 확인
+     */
+    @Cacheable(value = "followStatus", key = "#followerId + '_' + #followeeId")
+    public boolean isFollowing(String followerId, String followeeId) {
+        return followRepository.existsByFollowerIdAndFolloweeId(followerId, followeeId);
     }
 
-    @GetMapping("/{userId}/stats")
-    @Operation(summary = "팔로우 통계", description = "사용자의 팔로워/팔로잉 수를 조회합니다.")
-    public ResponseEntity<ApiResponse<FollowStats>> getFollowStats(@PathVariable String userId) {
-        return ResponseEntity.ok(ApiResponse.<FollowStats>builder().build());
+    /**
+     * 팔로우 통계 조회
+     */
+    @Cacheable(value = "followStats", key = "#userId")
+    public FollowStats getFollowStats(String userId) {
+        Long followersCount = followRepository.countByFolloweeId(userId);
+        Long followingCount = followRepository.countByFollowerId(userId);
+
+        return new FollowStats(followersCount, followingCount);
     }
 
-    private String extractUserIdFromUserDetails(UserDetails userDetails) {
-        return userDetails.getUsername(); // 임시로 username을 사용
+    /**
+     * 팔로잉하는 사용자 ID 목록 조회 (개인화 피드용)
+     */
+    @Cacheable(value = "followingUserIds", key = "#userId")
+    public List<String> getFollowingUserIds(String userId) {
+        return followRepository.findByFollowerIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(Follow::getFolloweeId)
+                .collect(Collectors.toList());
     }
 
+    /**
+     * 팔로워 사용자 ID 목록 조회
+     */
+    @Cacheable(value = "followerUserIds", key = "#userId")
+    public List<String> getFollowerUserIds(String userId) {
+        return followRepository.findByFolloweeIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(Follow::getFollowerId)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 상호 팔로우 여부 확인
+     */
+    public boolean isMutualFollow(String userId1, String userId2) {
+        return isFollowing(userId1, userId2) && isFollowing(userId2, userId1);
+    }
+
+    /**
+     * 추천 팔로우 사용자 목록 (간단한 로직)
+     */
+    @Cacheable(value = "recommendedUsers", key = "#userId")
+    public List<String> getRecommendedUsers(String userId, int limit) {
+        // 팔로잉하는 사용자들의 팔로잉 목록에서 추천
+        List<String> followingIds = getFollowingUserIds(userId);
+        List<String> currentFollowingIds = getFollowingUserIds(userId);
+
+        return followingIds.stream()
+                .flatMap(followingId -> getFollowingUserIds(followingId).stream())
+                .filter(recommendedId -> !recommendedId.equals(userId)) // 자기 자신 제외
+                .filter(recommendedId -> !currentFollowingIds.contains(recommendedId)) // 이미 팔로우 중인 사용자 제외
+                .distinct()
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 사용자 팔로우 수 업데이트
+     */
+    private void updateUserFollowCounts(String followerId, String followeeId, boolean isFollow) {
+        // 팔로워 수 업데이트 (팔로우 받는 사용자)
+        userRepository.findById(followeeId).ifPresent(followee -> {
+            if (isFollow) {
+                followee.incrementFollowersCount();
+            } else {
+                followee.decrementFollowersCount();
+            }
+            userRepository.save(followee);
+        });
+
+        // 팔로잉 수 업데이트 (팔로우 하는 사용자)
+        userRepository.findById(followerId).ifPresent(follower -> {
+            if (isFollow) {
+                follower.incrementFollowingCount();
+            } else {
+                follower.decrementFollowingCount();
+            }
+            userRepository.save(follower);
+        });
+    }
+
+    /**
+     * 팔로우 관련 캐시 무효화
+     */
+    @CacheEvict(value = {"followings", "followers", "followStatus", "followStats", "followingUserIds", "followerUserIds", "recommendedUsers"},
+            key = "#followerId")
+    private void evictFollowerCaches(String followerId) {
+        // 팔로워의 캐시 무효화
+    }
+
+    @CacheEvict(value = {"followings", "followers", "followStatus", "followStats", "followingUserIds", "followerUserIds", "recommendedUsers"},
+            key = "#followeeId")
+    private void evictFolloweeCaches(String followeeId) {
+        // 팔로우 받는 사용자의 캐시 무효화
+    }
+
+    private void evictFollowCaches(String followerId, String followeeId) {
+        evictFollowerCaches(followerId);
+        evictFolloweeCaches(followeeId);
+
+        // 뉴스 피드 캐시도 무효화
+        if (newsFeedService != null) {
+            newsFeedService.invalidateUserFeedCache(followerId);
+        }
+    }
+
+    /**
+     * Follow ID 생성
+     */
+    private String generateFollowId() {
+        return "follow_" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    /**
+     * 팔로우 통계 DTO
+     */
     public record FollowStats(Long followersCount, Long followingCount) {}
 }
